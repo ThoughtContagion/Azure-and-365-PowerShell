@@ -32,7 +32,7 @@ This method requires that the application has a Service Principal, if one does n
 
 
 #Connect to Azure AD
-Connect-AzureAD 
+#Connect-AzureAD 
 
 
 Function Show-Menu {
@@ -42,17 +42,16 @@ Function Show-Menu {
 
     Write-Host "================ $Title ================"
     Write-Host ""
-    Write-Host "1: Press 'M' to add only yourself."
-    Write-Host "2: Press 'L' to upload a list of users."
-    Write-Host "3: Press 'S' to add a single user."
-	Write-Host "4: Press 'G' to add an Azure Security Group."
+    Write-Host "1: Press 'L' to upload a list of users."
+    Write-Host "2: Press 'S' to add a single user."
+	Write-Host "3: Press 'G' to add an Azure Security Group."
     Write-Host""
 }
 
 Function Me {
     $session = Get-AzureADCurrentSessionInfo 
     $me = Get-AzureADUser -ObjectId $session.Account.Id
-    $global:Users = $me
+    $global:Me = $me.ObjectId
 }
 
 Function List{
@@ -81,7 +80,6 @@ Function Get-Admins {
         $userOption = Read-Host "Choose your option"
         
         Switch ($userOption){
-            M {Me} 
             L {List}
             S {SingleUser}
             G {AADGroup}   
@@ -118,11 +116,11 @@ Function Restrict-AADPS {
         Set-AzureADServicePrincipal -ObjectId $servicePrincipal.ObjectId -AppRoleAssignmentRequired $true
     }
 
-    #Set the assignment on the Service Principal. Include Global Administrators by default to prevent locking out the application.
-    $globalAdmin = Get-AzureADDirectoryRole | Where-Object {$_.DisplayName -eq "Global Administrator"}
+    #Set the assignment on the Service Principal. Include user running this script by default to prevent locking out the application.
+    Me
     
-    Write-Output "`nPreventing lockout of the application. Assigning Global Admin Directory Role by default."
-    New-AzureADServiceAppRoleAssignment -ObjectId $servicePrincipal.ObjectId -ResourceId $servicePrincipal.ObjectId -Id ([Guid]::Empty.ToString()) -PrincipalId $globalAdmin.ObjectID
+    Write-Output "`nPreventing lockout of the application. Assigning your user by default."
+    New-AzureADServiceAppRoleAssignment -ObjectId $servicePrincipal.ObjectId -ResourceId $servicePrincipal.ObjectId -Id ([Guid]::Empty.ToString()) -PrincipalId $global:Me
 
     Get-Admins
 
