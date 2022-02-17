@@ -49,6 +49,30 @@ Function Show-Menu {
     Write-Host""
 }
 
+Function Me {
+    $session = Get-AzureADCurrentSessionInfo 
+    $me = Get-AzureADUser -ObjectId $session.Account.Id
+    $global:Users = $me
+}
+
+Function List{
+    $path = Read-Host -Prompt "Enter the path to the file containing list of Users DisplayName's. One per line."
+    $users = Get-Content -Path $path
+    Foreach ($user in $users){
+        $x = Get-AzureADUser | Where-Object {$_.DisplayName -like $user}
+        $global:Users += $x
+    }
+}
+
+Function SingleUser {
+    $admin = Read-Host -Prompt "Enter the DisplayName of the User"
+    $global:Users = Get-AzureADUser | Where-Object {$_.DisplayName -like $admin}
+}
+
+Function AADGroup {
+    $group = Read-Host -Prompt "Enter the DisplayName of the Group to assign"
+    $global:Users = Get-AzureADGroup | Where-Object {$_.DisplayName -like $group}
+}
 
 Function Get-Admins {
     do {
@@ -57,10 +81,10 @@ Function Get-Admins {
         $userOption = Read-Host "Choose your option"
         
         Switch ($userOption){
-            M {$global:Users = $session = Get-AzureADCurrentSessionInfo ; Get-AzureADUser -ObjectId $session.Account.Id | Out-Null} 
-            L {$global:Users = $path = Read-Host -Prompt "Enter the path to the file containing list of Users DisplayName's. One per line."; Get-Content -Path $path | Out-Null}
-            S {$global:Users = $admin = Read-Host -Prompt "Enter the DisplayName of the User" ; Get-AzureADUser | Where-Object {$_.DisplayName -like $admin} | Out-Null}
-            G {$global:Users = $group = Read-Host -Prompt "Enter the DisplayName of the Group to assign" ; Get-AzureADGroup | Where-Object {$_.DisplayName -like $group} | Out-Null}   
+            M {Me} 
+            L {List}
+            S {SingleUser}
+            G {AADGroup}   
             }
         Return $global:Users | Out-Null
     }
@@ -102,9 +126,9 @@ Function Restrict-AADPS {
 
     Get-Admins
 
-    Foreach ($admin in $global:Users){
-        Write-Output "Adding $($admin.DisplayName) to $($servicePrincipal.DisplayName) restriction."
-        New-AzureADServiceAppRoleAssignment -ObjectId $servicePrincipal.ObjectId -ResourceId $servicePrincipal.ObjectId -Id ([Guid]::Empty.ToString()) -PrincipalId $admin.ObjectID
+    Foreach ($i in $global:Users){
+        Write-Output "Adding $($i.DisplayName) to $($servicePrincipal.DisplayName) restriction."
+        New-AzureADServiceAppRoleAssignment -ObjectId $servicePrincipal.ObjectId -ResourceId $servicePrincipal.ObjectId -Id ([Guid]::Empty.ToString()) -PrincipalId $i.ObjectID
     }
 }
 
