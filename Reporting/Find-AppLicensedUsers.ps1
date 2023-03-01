@@ -1238,7 +1238,6 @@ Function Find-AppLicensedUsers {
         $allUsers = Get-MsolUser -All | Where-Object { ($_.Licenses).Count -gt 0 }
 
         Foreach ($user in $allUsers) {
-
             $assignments = (Get-MsolUser -UserPrincipalName $user.UserPrincipalName).Licenses
 
             $userInfo = [PSCustomObject]@{
@@ -1254,7 +1253,9 @@ Function Find-AppLicensedUsers {
                 $userInfo.'License Assignment Method' = 'Direct'
             }
 
-            $spNames = (Get-MsolUser -UserPrincipalName $user.UserPrincipalName).Licenses.servicestatus.serviceplan.servicename
+            $svcStatus = (Get-MsolUser -UserPrincipalName $user.UserPrincipalName).Licenses.servicestatus
+            $spNames = ($svcStatus | Where-Object { $_.ProvisioningStatus -eq 'Success' }).serviceplan.servicename
+            
             $serviceNames = @()
 
             foreach ($serviceplan in $spNames) {
@@ -1273,7 +1274,7 @@ Function Find-AppLicensedUsers {
             }
 
             $userInfo.Applications = ($userApps | Out-String).Trim()
-            $userInfo | Export-Csv "UserLicenseReport.csv" -NoTypeInformation -Append
+            $userInfo | Where-Object { $_.Applications -ne "" } | Export-Csv "UserLicenseReport.csv" -NoTypeInformation -Append
         }
     }
 
@@ -1297,8 +1298,10 @@ Function Find-AppLicensedUsers {
                 $userInfo.'License Assignment Method' = 'Direct'
             }
 
-            $spNames = (Get-MgUserLicenseDetail -UserId ($user).id).ServicePlans.ServicePlanName
+            $enabledApps = (Get-MgUserLicenseDetail -UserId ($user).id).ServicePlans | Where-Object { $_.ProvisioningStatus -eq 'Success' }
             
+            $spNames = $enabledApps.ServicePlanName
+
             $serviceNames = @()
 
             foreach ($serviceplan in $spNames) {
@@ -1318,7 +1321,7 @@ Function Find-AppLicensedUsers {
 
             $userInfo.Applications = ($userApps | Out-String).Trim()
 
-            $userInfo | Export-Csv "UserLicenseReport.csv" -NoTypeInformation -Append
+            $userInfo | Where-Object { $_.Applications -ne "" } | Export-Csv "UserLicenseReport.csv" -NoTypeInformation -Append
         }
     }
 }
